@@ -39,17 +39,26 @@ def test_offline_fallback_without_key(monkeypatch):
 
 def test_malformed_groq_response_falls_back(monkeypatch):
     import groq
+    calls=[]
     class FakeCompletions:
         def create(self,**kwargs):
+            calls.append(kwargs)
             class Choice: message=type("Message",(),{"content":"probably schedule or refill"})()
             return type("Response",(),{"choices":[Choice()]})()
     class FakeGroq:
         def __init__(self,**kwargs): self.chat=type("Chat",(),{"completions":FakeCompletions()})()
     monkeypatch.setattr(groq,"Groq",FakeGroq)
-    monkeypatch.setenv("GROQ_API_KEY","test-key"); monkeypatch.setenv("GROQ_MAX_RETRIES","0")
+    monkeypatch.setenv("GROQ_API_KEY","test-key"); monkeypatch.setenv("GROQ_MAX_RETRIES","2")
     from app.agent.groq_client import GroqInterpreter
     llm=GroqInterpreter()
     assert llm.classify("hello") is None and llm.status=="fallback"
+    assert llm.failure_kind=="invalid_response" and llm.request_errors==0
+    assert len(calls)==1 and calls[0]["max_completion_tokens"]>=128
+
+def test_groq_tag_parser_accepts_common_structured_formats():
+    from app.agent.groq_client import GroqInterpreter
+    assert GroqInterpreter._parse_tags("Intents: refill, records") == ["refill", "records"]
+    assert GroqInterpreter._parse_tags('["schedule", "billing"]') == ["schedule", "billing"]
 
 @pytest.mark.parametrize("failure",[TimeoutError("request timed out"),RuntimeError("429 Too Many Requests")])
 def test_groq_timeout_and_rate_limit_fall_back(monkeypatch,failure):
@@ -63,6 +72,7 @@ def test_groq_timeout_and_rate_limit_fall_back(monkeypatch,failure):
     from app.agent.groq_client import GroqInterpreter
     llm=GroqInterpreter()
     assert llm.classify("message") is None and llm.status=="fallback"
+    assert llm.failure_kind=="request_error" and llm.request_errors==1
 
 def test_mcp_tool_server_rejects_unauthorized_read():
     from mcp.server.fastmcp.exceptions import ToolError

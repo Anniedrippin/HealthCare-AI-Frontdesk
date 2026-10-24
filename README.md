@@ -67,7 +67,9 @@ Both evaluations below use the same 40-message synthetic sample. These are resul
 | Per-queue precision and recall | 100% for all queues | 100% for all queues |
 | Schema failures                |                   0 |                   0 |
 | Tool errors                    |                   0 |                   0 |
-| API failures                   |        Not reported |                   0 |
+| API request failures            |                   0 |                   0 |
+| Classifier fallbacks            |                   0 |                   0 |
+| Invalid classifier responses    |                   0 |                   0 |
 | Missed emergencies             |                   0 |                   0 |
 | `must_not` violations          |                   0 |                   0 |
 | Human escalations              |                  23 |                  23 |
@@ -87,9 +89,9 @@ Routing metrics were 100% precision and recall for each queue: `clinician_urgent
 - **Routing exact match:** action-derived exact routing match; per-queue metrics use one-vs-rest precision and recall.
 - **Patient ID accuracy:** exact patient ID match. The two known label disagreements are M011 and M027: the labels expect IDs for unverified senders, while the privacy and output rules require `null` unless identity is verified. The implementation honors the privacy rule; both disagreements are reported in `patient_id_label_conflicts`.
 
-The Groq run reported no missed emergencies, no `must_not` violations, no schema failures, no tool errors, and no API failures. These are encouraging regression-test results, but a 40-message sample is too small to establish robust safety or reliability. In particular, zero observed safety violations does not prove that the system is safe.
+The earlier Groq run had 15 classifier fallbacks because the strict parser rejected some successful responses; the old report mislabeled those fallbacks as API failures. The classifier now accepts common tag/list formats, uses a 512-token completion budget, avoids retrying a successful response that fails parsing, and reports request failures separately. After those changes, the Groq evaluation processed all 40 messages with 0 API request failures, 0 invalid classifier responses, and 0 fallbacks. These sample results do not prove that the system is safe.
 
-The full test suite previously passed 21 tests; rerun `python -m pytest -q` in the current environment before relying on that status.
+The full test suite passes 24 tests (`python -m pytest -q`).
 
 ## Limits and next week
 

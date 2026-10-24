@@ -83,6 +83,10 @@ class Agent:
         verified=bool(auth.get("verified")); output_patient_id=patient_id if verified else None
         # Language understanding can supplement deterministic classification but cannot downgrade safety.
         llm_tags=self.llm.classify(body)
+        if self.llm.request_errors:
+            errors.append(f"groq_request_errors:{self.llm.request_errors}")
+        if self.llm.failure_kind:
+            errors.append(f"groq_{self.llm.failure_kind}:{self.llm.error or 'unknown'}")
         if re.search(r"\b(refill\w*|renew\w*|more \w+|ran out|out of pills|prescription|script|metformina)\b",low) or any(re.search(re.escape(x["medication"].split()[0]),low,re.I) for x in store.medications): intents.append("refill")
         if re.search(r"\b(book\w*|appointment|see dr|see sarah|come in|get (her|him|me) seen|physical|checkup|cita|chequeo)\b",low): intents.append("schedule")
         if re.search(r"\b(move my\b|reschedule|change my appointment)\b",low): intents=[x for x in intents if x!="schedule"]+(["reschedule"] if "reschedule" not in intents else [])
