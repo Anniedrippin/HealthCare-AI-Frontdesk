@@ -1,0 +1,8 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+evaluation/predictions*.json
+evaluation/report*.json
+evaluation/report*.md
